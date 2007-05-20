@@ -6,3 +6,4 @@ README
 lib/Module/Versions/Report.pm
 t/00about.t
 t/10load.t
+META.yml                                 Module meta-data (added by MakeMaker)

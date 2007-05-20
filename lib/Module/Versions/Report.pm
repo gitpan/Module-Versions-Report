@@ -1,7 +1,8 @@
 
 require 5;
 package Module::Versions::Report;
-$VERSION = '1.02';
+$VERSION = '1.03';
+$PACKAGES_LIMIT = 1000;
 
 =head1 NAME
 
@@ -63,19 +64,34 @@ program has finished running, you well get a report detailing the all
 modules in memory, and noting the version of each (for modules that
 defined a C<$VERSION>, at least).
 
-=head1 COPYRIGHT AND DISCLAIMER
+=head1 USING
 
-Copyright 2001-2003 Sean M. Burke. This library is free software; you
-can redistribute it and/or modify it under the same terms as Perl
-itself.
+=head2 Importing
 
-This program is distributed in the hope that it will be useful, but
-without any warranty; without even the implied warranty of
-merchantability or fitness for a particular purpose.
+If this package is imported then END block is set, and report printed to
+stdout on a program exit, so use C<use Module::Versions::Report;> if you
+need a report on exit or C<use Module::Versions::Report ();> otherwise
+and call report or print_report functions yourself.
 
-=head1 AUTHOR
+=cut
 
-Sean M. Burke, E<lt>sburke@cpan.orgE<gt>
+$Already = 0;
+
+sub import {
+  # so "use Module::Versions::Report;" sets up the END block, but
+  # a mere "use Module::Versions::Report ();" doesn't.
+  unless($Already) {
+    eval 'END { print_report(); }';
+    die "Extremely unexpected error in ", __PACKAGE__, ": $@" if $@;
+    $Already = 1;
+  }
+  return;
+}
+
+=head2 report and print_report functions
+
+The first one returns preformatted report as a string, the latter outputs
+a report to stdout.
 
 =cut
 
@@ -100,14 +116,15 @@ sub report {
   my $pref;
   while(@stack) {
     $this = shift @stack;
-    die "Too many packages?" if ++$count > 1000;
+    die "Too many packages?" if $count > $PACKAGES_LIMIT;
     next if exists $v{$this};
     next if $this eq 'main'; # %main:: is %::
 
     #print "Peeking at $this => ${$this . '::VERSION'}\n";
     
     if(defined ${$this . '::VERSION'} ) {
-      $v{$this} = ${$this . '::VERSION'}
+      $v{$this} = ${$this . '::VERSION'};
+      $count++;
     } elsif(
        defined *{$this . '::ISA'} or defined &{$this . '::import'}
        or ($this ne '' and grep defined *{$_}{'CODE'}, values %{$this . "::"})
@@ -115,6 +132,7 @@ sub report {
     ) {
       # It's a class/module with no version.
       $v{$this} = undef;
+      $count++;
     } else {
       # It's probably an unpopulated package.
       ## $v{$this} = '...';
@@ -139,19 +157,27 @@ sub report {
 
 sub print_report { print '', report(); }
 
-$Already = 0;
-
-sub import {
-  # so "use Module::Versions::Report;" sets up the END block, but
-  # a mere "use Module::Versions::Report ();" doesn't.
-  unless($Already) {
-    eval 'END { print_report(); }';
-    die "Extremely unexpected error in ", __PACKAGE__, ": $@" if $@;
-    $Already = 1;
-  }
-  return;
-}
 1;
+
+=head1 COPYRIGHT AND DISCLAIMER
+
+Copyright 2001-2003 Sean M. Burke. This library is free software; you
+can redistribute it and/or modify it under the same terms as Perl
+itself.
+
+This program is distributed in the hope that it will be useful, but
+without any warranty; without even the implied warranty of
+merchantability or fitness for a particular purpose.
+
+=head1 MAINTAINER
+
+Ruslan U. Zakirov E<lt>ruz@bestpractical.comE<gt>
+
+=head1 AUTHOR
+
+Sean M. Burke, E<lt>sburke@cpan.orgE<gt>
+
+=cut
 
 __END__
 
